@@ -1,62 +1,63 @@
-import os, pathlib, re, collections
-import chardet
-
-import PyPDF2, docx_parser as docxParser, filetype
+import os, pathlib, re, magic
 import hashlib
 
-import FileData
+import FileData, ExtractText
 
-inputFiles=[]
-def fileIngestion():
+def fileIngestion(inputFiles):
     inputPath=pathlib.Path("./input")
     
     if inputPath.exists():
         for file in os.listdir(inputPath):
             tempPath=os.path.join(inputPath, file)
-            kind=filetype.guess(tempPath)
-            if kind.extension=="txt" or kind.extension=="pdf" or kind.extension=="docx":
+            kind=magic.from_file(tempPath, mime=True)
+            print(kind)
+            if kind=='application/pdf' or kind=='text/plain' or kind=='application/zip':
                 tempName=file
                 tempSize=os.path.getsize(tempPath)
                 tempCDate=os.path.getctime(tempPath)
 
                 newFile = FileData.FileData(tempPath,tempName,tempSize,tempCDate)
                 inputFiles.append(newFile)
-
-
-def textExtraction(): # turning files into raw searchable text
+            
+def textExtraction(inputFiles): # turning files into raw searchable text
     for file in inputFiles:
         filePath= file.getPath()
         if os.access(filePath, os.R_OK):
-            fileType=filetype.guess(filePath)
-            content=""
-
-            match fileType.extension:
-                case "txt":
-                    with open(filePath, 'rb') as file: #open file in binary to detect encoding
-                        content = file.read()
-                        txtEncoding= chardet.detect(content)['encoding']
-                    with open(filePath, "r", encoding=txtEncoding, errors="replace") as file: #open file with the right encoding
-                        content = file.read()
-
-                case "pdf":
-                    reader=PyPDF2.PdfReader(filePath)
-                    for page in reader.pages:
-                        text=page.extract_text()
-                        if text and text.strip(): #if page has a text layer
-                            content+=text
-
-                case "docx":
-                    doc= docxParser.DocumentParser(filePath)
-                    for _type, paragraph in doc.parse():
-                        content+=paragraph
-
+            kind=magic.from_file(filePath, mime=True)
+            content=''
+            match kind:
+                case 'application/pdf':
+                    try:
+                        content=ExtractText.extractPDF(filePath)
+                    except Exception as ex:
+                        file.setStatus('error')
+                        print('Failed to parse '+ file.getName()+' at '+filePath)
+                        continue
+                case 'application/zip':
+                    try:
+                        content=ExtractText.extractDocx(filePath)
+                    except Exception as ex:
+                        file.setStatus('error')
+                        print('Failed to parse '+ file.getName()+' at '+filePath)
+                        continue
+                case 'text/plain':
+                    try:
+                        content=ExtractText.extractTxt(filePath)
+                    except Exception as ex:
+                        file.setStatus('error')
+                        print('Failed to parse '+ file.getName()+' at '+filePath)
+                        continue                
             file.setRawContent(content)
-            content=normaliseString(content,file)
+            content=normaliseString(content)
             file.setNormalContent(content)
-        else:
-            pass
 
-def normaliseString(inputString,file):    
+        if len(content.strip()) == 0:
+            file.setStatus('empty')
+        else:
+            file.setStatus("text_extracted")
+
+#normalises extracted text so it can be stored within the same format
+def normaliseString(inputString):    
     inputString=inputString.strip() # remove whitespaces
 
     mapping =  dict.fromkeys(range(32), None)
@@ -66,7 +67,7 @@ def normaliseString(inputString,file):
 
     return inputString
 
-def metadataEnrichment():
+def metadataConstruction(inputFiles):
     for file in inputFiles:
         content=file.getNormalisedContent()
 
@@ -76,9 +77,20 @@ def metadataEnrichment():
 
         file.setUniqueWordCount(len(set(words)))
 
-        wordFreq=collections.Counter(words) #{word : frequency}
+        #wordFreq=collections.Counter(words) #{word : frequency}
+
+        rawContent=file.getRawContent()
+        file.setMD5Hash(hashlib.md5(rawContent.encode()).hexdigest())# use hex to get a readable hex string over raw bytes
+        file.setSHA256Hash(hashlib.sha256(rawContent.encode()).hexdigest())
+
+        file.setStatus("metadata_complete")
+
+def main():
+    inputFiles=[]
+    fileIngestion(inputFiles)
+    textExtraction(inputFiles)
+    metadataConstruction(inputFiles)
 
 
-fileIngestion()
-textExtraction()
-metadataEnrichment()
+if __name__=="__main__":
+    main()
