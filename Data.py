@@ -5,25 +5,33 @@ class FileData:
         self._name=name
         self._size=size #stored in bytes
         self._creationDate=date
-
-        self._rawContent=""
-        self._normalisedContent=""
-
-        self._charCount=0
-        self._wordCount=0
-        self._uniqueWordCount=0
-        
         self._md5=None
         self._sha256=None
-
         self._status="ingested"
-
 
 
     def getPath(self):
         return self._path
     def getName(self):
         return self._name
+    def getSize(self):
+        return self._size
+
+    def setStatus(self, status):
+        self._status=status
+    def setMD5Hash(self,hash):
+        self._md5=hash
+    def setSHA256Hash(self,hash):
+        self._sha256=hash
+    
+class DocumentData:
+    def __init__(self):
+        self._rawContent=""
+        self._normalisedContent=""
+        self._charCount=0
+        self._wordCount=0
+        self._uniqueWordCount=0
+
     def getNormalisedContent(self):
         return self._normalisedContent
     def getRawContent(self):
@@ -39,11 +47,6 @@ class FileData:
         self._wordCount=words
     def setUniqueWordCount(self, words):
         self._uniqueWordCount=words
-    def setStatus(self, status):
-        self._status=status
 
-    def setMD5Hash(self,hash):
-        self._md5=hash
-    def setSHA256Hash(self,hash):
-        self._sha256=hash
+
     

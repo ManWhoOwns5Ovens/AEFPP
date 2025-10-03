@@ -1,7 +1,8 @@
 import os, pathlib, re, magic
 import hashlib
 
-import FileData, ExtractText
+import ExtractText
+from Data import FileData, DocumentData
 
 def fileIngestion(inputFiles):
     inputPath=pathlib.Path("./input")
@@ -16,11 +17,11 @@ def fileIngestion(inputFiles):
                 tempSize=os.path.getsize(tempPath)
                 tempCDate=os.path.getctime(tempPath)
 
-                newFile = FileData.FileData(tempPath,tempName,tempSize,tempCDate)
-                inputFiles.append(newFile)
+                newFile = FileData(tempPath,tempName,tempSize,tempCDate)
+                inputFiles[newFile]= DocumentData()
             
 def textExtraction(inputFiles): # turning files into raw searchable text
-    for file in inputFiles:
+    for file in inputFiles.keys():
         filePath= file.getPath()
         if os.access(filePath, os.R_OK):
             kind=magic.from_file(filePath, mime=True)
@@ -46,10 +47,12 @@ def textExtraction(inputFiles): # turning files into raw searchable text
                     except Exception as ex:
                         file.setStatus('error')
                         print('Failed to parse '+ file.getName()+' at '+filePath)
-                        continue                
-            file.setRawContent(content)
+                        continue
+
+            document=inputFiles[file]                
+            document.setRawContent(content)
             content=normaliseString(content)
-            file.setNormalContent(content)
+            document.setNormalContent(content)
 
         if len(content.strip()) == 0:
             file.setStatus('empty')
@@ -68,25 +71,26 @@ def normaliseString(inputString):
     return inputString
 
 def metadataConstruction(inputFiles):
-    for file in inputFiles:
-        content=file.getNormalisedContent()
+    for file in inputFiles.keys():
+        document=inputFiles[file]
+        content=document.getNormalisedContent()
 
-        file.setCharCount(len(content))
+        document.setCharCount(len(content))
         words = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ'-]+", content)
-        file.setWordCount(len(words))
+        document.setWordCount(len(words))
 
-        file.setUniqueWordCount(len(set(words)))
+        document.setUniqueWordCount(len(set(words)))
 
         #wordFreq=collections.Counter(words) #{word : frequency}
 
-        rawContent=file.getRawContent()
+        rawContent=document.getRawContent()
         file.setMD5Hash(hashlib.md5(rawContent.encode()).hexdigest())# use hex to get a readable hex string over raw bytes
         file.setSHA256Hash(hashlib.sha256(rawContent.encode()).hexdigest())
 
         file.setStatus("metadata_complete")
 
 def main():
-    inputFiles=[]
+    inputFiles={} # dictionary {file data : document data}
     fileIngestion(inputFiles)
     textExtraction(inputFiles)
     metadataConstruction(inputFiles)
