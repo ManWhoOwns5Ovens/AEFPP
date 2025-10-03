@@ -3,6 +3,7 @@ import hashlib
 
 import ExtractText
 from Data import FileData, DocumentData
+import DatabaseOps
 
 def fileIngestion(inputFiles):
     inputPath=pathlib.Path("./input")
@@ -94,6 +95,9 @@ def main():
     fileIngestion(inputFiles)
     textExtraction(inputFiles)
     metadataConstruction(inputFiles)
+    #DatabaseOps.closeSession()
+    for file in inputFiles:
+        DatabaseOps.saveData(file,inputFiles[file])
 
 
 if __name__=="__main__":

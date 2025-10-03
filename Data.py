@@ -16,6 +16,14 @@ class FileData:
         return self._name
     def getSize(self):
         return self._size
+    def getCreationDate(self):
+        return self._creationDate
+    def getMD5(self):
+        return self._md5
+    def getSHA256(self):
+        return self._sha256
+    def getStatus(self):
+        return self._status
 
     def setStatus(self, status):
         self._status=status
@@ -36,6 +44,12 @@ class DocumentData:
         return self._normalisedContent
     def getRawContent(self):
         return self._rawContent
+    def getCharCount(self):
+        return self._charCount
+    def getWordCount(self):
+        return self._wordCount
+    def getUnique(self):
+        return self._uniqueWordCount
     
     def setRawContent(self, content):
         self._rawContent=content
