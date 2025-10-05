@@ -1,4 +1,4 @@
-import os, pathlib, re, magic
+import os, pathlib, re, magic, collections
 import hashlib
 
 import ExtractText
@@ -12,7 +12,6 @@ def fileIngestion(inputFiles):
         for file in os.listdir(inputPath):
             tempPath=os.path.join(inputPath, file)
             kind=magic.from_file(tempPath, mime=True)
-            print(kind)
             if kind=='application/pdf' or kind=='text/plain' or kind=='application/zip':
                 tempName=file
                 tempSize=os.path.getsize(tempPath)
@@ -82,7 +81,7 @@ def metadataConstruction(inputFiles):
 
         document.setUniqueWordCount(len(set(words)))
 
-        #wordFreq=collections.Counter(words) #{word : frequency}
+        wordFreq=collections.Counter(words) #{word : frequency}
 
         rawContent=document.getRawContent()
         file.setMD5Hash(hashlib.md5(rawContent.encode()).hexdigest())# use hex to get a readable hex string over raw bytes
@@ -90,15 +89,17 @@ def metadataConstruction(inputFiles):
 
         file.setStatus("metadata_complete")
 
-def main():
+def addFilesToDB():
     inputFiles={} # dictionary {file data : document data}
     fileIngestion(inputFiles)
     textExtraction(inputFiles)
     metadataConstruction(inputFiles)
-    #DatabaseOps.closeSession()
     for file in inputFiles:
         DatabaseOps.saveData(file,inputFiles[file])
 
+def main():
+    addFilesToDB()  
+    DatabaseOps.searchKeyTerm(normaliseString(input()))
 
 if __name__=="__main__":
     main()
