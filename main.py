@@ -72,22 +72,24 @@ def normaliseString(inputString):
 
 def metadataConstruction(inputFiles):
     for file in inputFiles.keys():
-        document=inputFiles[file]
-        content=document.getNormalisedContent()
+        if file.getStatus() != 'empty':
+            document=inputFiles[file]
+            content=document.getNormalisedContent()
 
-        document.setCharCount(len(content))
-        words = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ'-]+", content)
-        document.setWordCount(len(words))
+            document.setCharCount(len(content))
+            words = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ'-]+", content)
 
-        document.setUniqueWordCount(len(set(words)))
+            document.setWordCount(len(words))
+            document.setUniqueWordCount(len(set(words)))
 
-        wordFreq=collections.Counter(words) #{word : frequency}
+            print(collections.Counter(words))
+            document.setWordFreq(collections.Counter(words)) #{word : frequency}
 
-        rawContent=document.getRawContent()
-        file.setMD5Hash(hashlib.md5(rawContent.encode()).hexdigest())# use hex to get a readable hex string over raw bytes
-        file.setSHA256Hash(hashlib.sha256(rawContent.encode()).hexdigest())
+            rawContent=document.getRawContent()
+            file.setMD5Hash(hashlib.md5(rawContent.encode()).hexdigest())# use hex to get a readable hex string over raw bytes
+            file.setSHA256Hash(hashlib.sha256(rawContent.encode()).hexdigest())
 
-        file.setStatus("metadata_complete")
+            file.setStatus("metadata_complete")
 
 def addFilesToDB():
     inputFiles={} # dictionary {file data : document data}

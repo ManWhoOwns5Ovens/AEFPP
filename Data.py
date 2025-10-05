@@ -40,6 +40,8 @@ class DocumentData:
         self._wordCount=0
         self._uniqueWordCount=0
 
+        self._wordFreq=None
+
     def getNormalisedContent(self):
         return self._normalisedContent
     def getRawContent(self):
@@ -50,6 +52,8 @@ class DocumentData:
         return self._wordCount
     def getUnique(self):
         return self._uniqueWordCount
+    def getWordFreq(self):
+        return self._wordFreq
     
     def setRawContent(self, content):
         self._rawContent=content
@@ -61,6 +65,9 @@ class DocumentData:
         self._wordCount=words
     def setUniqueWordCount(self, words):
         self._uniqueWordCount=words
+    def setWordFreq(self, wordFreq):
+        self._wordFreq=wordFreq
+
 
 
     

@@ -5,29 +5,39 @@ import os
 
 base = orm.declarative_base() # keep track of my ORM classes, File & Document
 class File(base):
-    __tablename__ = "File"
-    Id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    Path = db.Column(db.String(255))
-    Name = db.Column(db.String(255))
-    Size = db.Column(db.Integer)
-    CreatDat = db.Column(db.DateTime)
-    MD5 = db.Column(db.String(32))
-    SHA256 = db.Column(db.String(64))
-    Status = db.Column(db.String(255))
+    __tablename__ = 'File'
+    Id= db.Column(db.Integer, primary_key=True, autoincrement=True)
+    Path= db.Column(db.String(255))
+    Name= db.Column(db.String(255))
+    Size= db.Column(db.Integer)
+    CreatDat= db.Column(db.DateTime)
+    MD5= db.Column(db.String(32))
+    SHA256= db.Column(db.String(64))
+    Status= db.Column(db.String(255))
 
-    documents = orm.relationship("Document", back_populates="file")
+    document= orm.relationship('Document', back_populates='file')
 
 class Document(base):
-    __tablename__ = "Document"
-    Id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    FileId = db.Column(db.Integer, db.ForeignKey("File.Id"))
-    RawTxt = db.Column(db.Text)
-    NormalTxt = db.Column(db.Text)
-    CharCount = db.Column(db.Integer)
-    WordCount = db.Column(db.Integer)
-    UniqueCount = db.Column(db.Integer)
+    __tablename__ = 'Document'
+    Id= db.Column(db.Integer, primary_key=True, autoincrement=True)
+    FileId= db.Column(db.Integer, db.ForeignKey('File.Id'))
+    RawTxt= db.Column(db.Text)
+    NormalTxt= db.Column(db.Text)
+    CharCount= db.Column(db.Integer)
+    WordCount= db.Column(db.Integer)
+    UniqueCount= db.Column(db.Integer)
 
-    file = orm.relationship("File", back_populates="documents")
+    file= orm.relationship('File', back_populates='document')
+    words= orm.relationship('Word', back_populates='document')
+
+class Word(base):
+    __tablename__='Words'
+    Id= db.Column(db.Integer, primary_key=True, autoincrement=True)
+    DocumentId= db.Column(db.Integer, db.ForeignKey('Document.Id'))
+    Word= db.Column(db.String(255))
+    Freq= db.Column(db.Integer)
+
+    document=orm.relationship('Document', back_populates='words')
 
 def createSession():
     engine=db.create_engine('sqlite:///aefpp.db') #connection factory to my db - pool of connections
@@ -47,7 +57,8 @@ def saveData(file,document):
             SHA256=file.getSHA256(),
             Status=file.getStatus()
         )
-        session.add(newFile)# push changes to db but doesnt commit yet - creates IDs lets me use them as FKs
+        session.add(newFile)
+        session.flush()# push changes to db but doesnt commit yet - creates IDs lets me use them as FKs
 
         newDoc = Document(
             FileId=newFile.Id,
@@ -58,6 +69,16 @@ def saveData(file,document):
             UniqueCount=document.getUnique()
         )
         session.add(newDoc)
+        session.flush()
+
+        wordFreq=document.getWordFreq()
+        for docWord in wordFreq:
+            newWord= Word(
+                DocumentId=newDoc.Id,
+                Word=docWord,
+                Freq=wordFreq[docWord]
+            )
+            session.add(newWord)
         session.commit() # finalise transaction to db, query interactions from session, without commit nothing is saved
         session.close()
 
@@ -73,21 +94,24 @@ def checkForHash(file):
     session.close()
     return result==[]
 
-def searchKeyTerm(keyTerm):
+def searchKeyTerm(keyTerms):
     session=createSession()
-    searchTerm='%'+keyTerm+'%'
-
-    query=(db.select(File.Path)
-           .where(Document.NormalTxt.like(searchTerm))
-           .where(Document.Id==File.Id)
-           )
-        
-    result=session.execute(query).scalars().all()
-    try:
-        for path in result:
-            os.startfile('.\\'+str(path))
-    except:
-        print('Cannot find file.')
-
+    keyTerms=keyTerms.split()
+    likeConditions=[Word.Word.like(f"%{term}%") for term in keyTerms]
+    
+    query = (
+    db.select(
+        File.Name,
+        Word.DocumentId,
+        db.func.sum(Word.Freq).label("TotalFreq")
+    )
+    .where(db.or_(*likeConditions))
+    .where(Document.Id==Word.DocumentId)
+    .where(Document.FileId==File.Id)
+    .group_by(Word.DocumentId)
+    .order_by(db.desc("TotalFreq"))
+    )
+    result= session.execute(query).all()
     print(result)
+    session.close()
 
