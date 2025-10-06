@@ -1,44 +1,117 @@
-import sqlite3
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+import sqlalchemy as db
+import sqlalchemy.orm as orm
+from datetime import datetime
+import os
 
-def runSqlCommand(command):
-    pass
+base = orm.declarative_base() # keep track of my ORM classes, File & Document
+class File(base):
+    __tablename__ = 'File'
+    Id= db.Column(db.Integer, primary_key=True, autoincrement=True)
+    Path= db.Column(db.String(255))
+    Name= db.Column(db.String(255))
+    Size= db.Column(db.Integer)
+    CreatDat= db.Column(db.DateTime)
+    MD5= db.Column(db.String(32))
+    SHA256= db.Column(db.String(64))
+    Status= db.Column(db.String(255))
 
-def closeConnection():
-    pass
+    document= orm.relationship('Document', back_populates='file')
 
-def createTables():
-    runSqlCommand("""
-    CREATE TABLE FILES (
-        ID INT NOT NULL AUTO_INCREMENT,
-        PATH VARCHAR(255),
-        NAME VARCHAR(255),
-        SIZE INT,
-        CREATED_AT TIMESTAMP,
-        MD5_HASH VARCHAR(32),
-        SHA256_HASH VARCHAR(64),
-        STATUS VARCHAR(50),
-        PRIMARY KEY (ID)
-    );
-    """)
+class Document(base):
+    __tablename__ = 'Document'
+    Id= db.Column(db.Integer, primary_key=True, autoincrement=True)
+    FileId= db.Column(db.Integer, db.ForeignKey('File.Id'))
+    RawTxt= db.Column(db.Text)
+    NormalTxt= db.Column(db.Text)
+    CharCount= db.Column(db.Integer)
+    WordCount= db.Column(db.Integer)
+    UniqueCount= db.Column(db.Integer)
 
-    runSqlCommand("""
-    CREATE TABLE DOCUMENTS(
-        ID INT NOT NULL AUTO_INCREMENT,
-        FILE_ID INT NOT NULL AUTO_INCREMENT,
-        RAW_TEXT MEDIUMTEXT
-        NORMAL_TEXT MEDIUMTEXT
-        CHAR_COUNT INT
-        WORD_COUNT INT
-        UNIQUE_WORD_COUNT INT
-        KEYWORDS VARCHAR(255)
-        PRIMARY KEY(ID)
-        FOREIGN KEY(FILE_ID) REFERENCES FILES(ID)
-    );
-    """)
+    file= orm.relationship('File', back_populates='document')
+    words= orm.relationship('Word', back_populates='document')
 
-engine= create_engine('sqlite:///aefpp.db')
+class Word(base):
+    __tablename__='Words'
+    Id= db.Column(db.Integer, primary_key=True, autoincrement=True)
+    DocumentId= db.Column(db.Integer, db.ForeignKey('Document.Id'))
+    Word= db.Column(db.String(255))
+    Freq= db.Column(db.Integer)
 
+    document=orm.relationship('Document', back_populates='words')
 
+def createSession():
+    engine=db.create_engine('sqlite:///aefpp.db') #connection factory to my db - pool of connections
+    base.metadata.create_all(engine)
+    localSession=orm.sessionmaker(bind=engine)# stores interactions with the db
+    return localSession()
+
+def saveData(file,document):
+    if checkForHash(file):
+        session=createSession()
+        newFile = File(
+            Path=file.getPath(),
+            Name=file.getName(),
+            Size=file.getSize(),
+            CreatDat=datetime.fromtimestamp(file.getCreationDate()),
+            MD5=file.getMD5(),
+            SHA256=file.getSHA256(),
+            Status=file.getStatus()
+        )
+        session.add(newFile)
+        session.flush()# push changes to db but doesnt commit yet - creates IDs lets me use them as FKs
+
+        newDoc = Document(
+            FileId=newFile.Id,
+            RawTxt=document.getRawContent(),
+            NormalTxt=document.getNormalisedContent(),
+            CharCount=document.getCharCount(),
+            WordCount=document.getWordCount(),
+            UniqueCount=document.getUnique()
+        )
+        session.add(newDoc)
+        session.flush()
+
+        wordFreq=document.getWordFreq()
+        for docWord in wordFreq:
+            newWord= Word(
+                DocumentId=newDoc.Id,
+                Word=docWord,
+                Freq=wordFreq[docWord]
+            )
+            session.add(newWord)
+        session.commit() # finalise transaction to db, query interactions from session, without commit nothing is saved
+        session.close()
+
+def checkForHash(file):
+    session=createSession()
+
+    query=db.select(File).where(File.MD5== file.getMD5())
+    result=session.execute(query).scalars().all()
+
+    if result!=[]:
+        query=db.select(File).where(File.SHA256== file.getSHA256())
+        result=session.execute(query).scalars().all()
+    session.close()
+    return result==[]
+
+def searchKeyTerm(keyTerms):
+    session=createSession()
+    keyTerms=keyTerms.split()
+    likeConditions=[Word.Word.like(f"%{term}%") for term in keyTerms]
+    
+    query = (
+    db.select(
+        File.Name,
+        Word.DocumentId,
+        db.func.sum(Word.Freq).label("TotalFreq")
+    )
+    .where(db.or_(*likeConditions))
+    .where(Document.Id==Word.DocumentId)
+    .where(Document.FileId==File.Id)
+    .group_by(Word.DocumentId)
+    .order_by(db.desc("TotalFreq"))
+    )
+    result= session.execute(query).all()
+    print(result)
+    session.close()
 
