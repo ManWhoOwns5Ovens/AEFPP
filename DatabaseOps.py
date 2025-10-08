@@ -94,6 +94,23 @@ def checkForHash(file):
     session.close()
     return result==[]
 
+def findAll():
+    session=createSession()    
+    query = (
+    db.select(
+        File.Name,
+        File.Path,
+        db.func.sum(Word.Freq).label("TotalFreq")
+    )
+    .where(Document.Id==Word.DocumentId)
+    .where(Document.FileId==File.Id)
+    .group_by(Word.DocumentId)
+    .order_by(db.desc("TotalFreq"))
+    )
+    result= session.execute(query).all()
+    session.close()
+    return result
+
 def searchKeyTerm(keyTerms):
     session=createSession()
     keyTerms=keyTerms.split()
@@ -112,6 +129,7 @@ def searchKeyTerm(keyTerms):
     .order_by(db.desc("TotalFreq"))
     )
     result= session.execute(query).all()
-    print(result)
     session.close()
+    return result
+    
 
