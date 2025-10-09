@@ -1,4 +1,4 @@
 import FileProcessing as fp
 
 if __name__=="__main__":
-    pass
+    fp.main()

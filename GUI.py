@@ -11,7 +11,7 @@ def searchForFile():
 def addFile():
     filePath=gui.QFileDialog.getOpenFileName(
         window,
-        'Select a file (txt,docx,pdf)',
+        'Select a file',
         '',
         'All Files (*);;Text Files (*.txt);;DOCX Files (*.docx);;PDF Files (*.pdf)'
     )
@@ -40,6 +40,7 @@ table=gui.QTableWidget()
 table.setColumnCount(3)
 table.setHorizontalHeaderLabels(["Name", "Frequency of Word", ""])
 layoutSearch.addWidget(table)
+
 allData=dbo.findAll()
 for row,(name,frequency,path) in enumerate(allData):
     table.setItem(row,0,gui.QTableWidgetItem(name))
