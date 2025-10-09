@@ -119,7 +119,7 @@ def searchKeyTerm(keyTerms):
     query = (
     db.select(
         File.Name,
-        Word.DocumentId,
+        File.Path,
         db.func.sum(Word.Freq).label("TotalFreq")
     )
     .where(db.or_(*likeConditions))

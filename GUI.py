@@ -3,20 +3,45 @@ import sys,os
 import DatabaseOps as dbo
 import FileProcessing as fp
 
-def searchForFile():
-    result=dbo.searchKeyTerm(searchBar.text())
-    labelSearchResult.setText(str(result))
-    layoutSearch.addWidget(labelSearchResult)
+
 
 def addFile():
-    filePath=gui.QFileDialog.getOpenFileName(
-        window,
-        'Select a file',
-        '',
-        'All Files (*);;Text Files (*.txt);;DOCX Files (*.docx);;PDF Files (*.pdf)'
-    )
-    if filePath:
-        fp.addFilesToDB(filePath[0])
+    try:
+        filePath=gui.QFileDialog.getOpenFileName(
+            window,
+            'Select a file',
+            '',
+            'All Files (*);;Text Files (*.txt);;DOCX Files (*.docx);;PDF Files (*.pdf)'
+        )
+        if filePath:
+            fp.addFilesToDB(filePath[0])
+        loadFullDatabase()
+    except:
+        pass
+
+def searchForFile():
+    result=dbo.searchKeyTerm(searchBar.text())
+    loadDatabase(result)
+
+def loadFullDatabase():
+    allData=dbo.findAll()
+    loadDatabase(allData)
+
+def loadDatabase(data):
+    table.setRowCount(0)
+    table.setRowCount(len(data))
+    for row,(name,path,frequency) in enumerate(data):
+        table.setItem(row,0,gui.QTableWidgetItem(name))
+        table.setItem(row,1,gui.QTableWidgetItem(str(frequency)))
+
+        button=gui.QPushButton('Open File')
+        button.clicked.connect(lambda _, p=path: openFile(p))
+        table.setCellWidget(row,2,button)
+    table.resizeColumnsToContents()
+    table.resizeRowsToContents()
+
+def openFile(p):
+    os.startfile(p)
 
 
 app=gui.QApplication(sys.argv)
@@ -33,25 +58,16 @@ addFileButton.clicked.connect(addFile)
 
 searchBar=gui.QLineEdit()
 searchBar.setPlaceholderText('Search File...')
-labelSearchResult=gui.QLabel('')
 searchBar.textChanged.connect(searchForFile)
 
 table=gui.QTableWidget()
+table.setEditTriggers(gui.QTableWidget.NoEditTriggers)
 table.setColumnCount(3)
-table.setHorizontalHeaderLabels(["Name", "Frequency of Word", ""])
+table.setHorizontalHeaderLabels(["Name", "Frequency", ""])
+loadFullDatabase()
+
+
 layoutSearch.addWidget(table)
-
-allData=dbo.findAll()
-for row,(name,frequency,path) in enumerate(allData):
-    table.setItem(row,0,gui.QTableWidgetItem(name))
-    table.setItem(row, 1, gui.QTableWidgetItem(frequency))
-
-    button=gui.QPushButton('Open File')
-    def openFile(p):
-        os.startfile(p)
-    button.clicked.connect(lambda _, p=path: openFile(p))
-
-
 layoutFunc.addWidget(addFileButton)
 layoutFunc.addWidget(searchBar)
 layoutSearch.addLayout(layoutFunc)
