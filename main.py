@@ -1,4 +1,4 @@
-import FileProcessing as fp
+import GUI
 
 if __name__=="__main__":
-    fp.main()
+    GUI.main()

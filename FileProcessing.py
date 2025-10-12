@@ -1,4 +1,4 @@
-import os, pathlib, re, magic, collections
+import os, re, magic, collections
 import hashlib
 
 import ExtractText
@@ -65,15 +65,16 @@ def normaliseString(inputString):
 def metadataConstruction(file,document):
     if file.getStatus() != 'empty':
         content=document.getNormalisedContent()
-
+        print(content)
+        
         document.setCharCount(len(content))
         words = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ'-]+", content)
+        print(words)
 
         document.setWordCount(len(words))
-        document.setUniqueWordCount(len(set(words)))
-
-        print(collections.Counter(words))
-        document.setWordFreq(collections.Counter(words)) #{word : frequency}
+        wordFreq=collections.Counter(words)
+        document.setWordFreq(wordFreq) #{word : frequency}
+        document.setUniqueWordCount(len(wordFreq))
 
         rawContent=document.getRawContent()
         file.setMD5Hash(hashlib.md5(rawContent.encode()).hexdigest())# use hex to get a readable hex string instead of raw bytes
@@ -83,7 +84,6 @@ def metadataConstruction(file,document):
     return (file,document)
 
 def addFilesToDB(filePath):
-    #inputFiles={} # dictionary {file data : document data}
     file=fileIngestion(filePath)
     file,document=textExtraction(file,filePath)
     file,document=metadataConstruction(file,document)

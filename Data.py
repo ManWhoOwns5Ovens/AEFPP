@@ -1,5 +1,4 @@
 class FileData:
-
     def __init__(self, path, name, size, date):
         self._path=path
         self._name=name
@@ -8,7 +7,6 @@ class FileData:
         self._md5=None
         self._sha256=None
         self._status="ingested"
-
 
     def getPath(self):
         return self._path

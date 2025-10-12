@@ -1,11 +1,10 @@
 import sqlalchemy as db
 import sqlalchemy.orm as orm
 from datetime import datetime
-import os
 
 base = orm.declarative_base() # keep track of my ORM classes, File & Document
 class File(base):
-    __tablename__ = 'File'
+    __tablename__ = 'Files'
     Id= db.Column(db.Integer, primary_key=True, autoincrement=True)
     Path= db.Column(db.String(255))
     Name= db.Column(db.String(255))
@@ -18,9 +17,9 @@ class File(base):
     document= orm.relationship('Document', back_populates='file')
 
 class Document(base):
-    __tablename__ = 'Document'
+    __tablename__ = 'Documents'
     Id= db.Column(db.Integer, primary_key=True, autoincrement=True)
-    FileId= db.Column(db.Integer, db.ForeignKey('File.Id'))
+    FileId= db.Column(db.Integer, db.ForeignKey('Files.Id'))
     RawTxt= db.Column(db.Text)
     NormalTxt= db.Column(db.Text)
     CharCount= db.Column(db.Integer)
@@ -33,11 +32,12 @@ class Document(base):
 class Word(base):
     __tablename__='Words'
     Id= db.Column(db.Integer, primary_key=True, autoincrement=True)
-    DocumentId= db.Column(db.Integer, db.ForeignKey('Document.Id'))
+    DocumentId= db.Column(db.Integer, db.ForeignKey('Documents.Id'))
     Word= db.Column(db.String(255))
     Freq= db.Column(db.Integer)
 
     document=orm.relationship('Document', back_populates='words')
+
 
 def createSession():
     engine=db.create_engine('sqlite:///aefpp.db') #connection factory to my db - pool of connections
@@ -72,6 +72,7 @@ def saveData(file,document):
         session.flush()
 
         wordFreq=document.getWordFreq()
+        print(wordFreq)
         for docWord in wordFreq:
             newWord= Word(
                 DocumentId=newDoc.Id,
@@ -79,6 +80,7 @@ def saveData(file,document):
                 Freq=wordFreq[docWord]
             )
             session.add(newWord)
+
         session.commit() # finalise transaction to db, query interactions from session, without commit nothing is saved
         session.close()
 
@@ -100,7 +102,8 @@ def findAll():
     db.select(
         File.Name,
         File.Path,
-        db.func.sum(Word.Freq).label("TotalFreq")
+        db.func.sum(Word.Freq).label("TotalFreq"),
+        File.Id
     )
     .where(Document.Id==Word.DocumentId)
     .where(Document.FileId==File.Id)
@@ -120,13 +123,31 @@ def searchKeyTerm(keyTerms):
     db.select(
         File.Name,
         File.Path,
-        db.func.sum(Word.Freq).label("TotalFreq")
+        db.func.sum(Word.Freq).label("TotalFreq"),
+        File.Id
     )
     .where(db.or_(*likeConditions))
     .where(Document.Id==Word.DocumentId)
     .where(Document.FileId==File.Id)
     .group_by(Word.DocumentId)
     .order_by(db.desc("TotalFreq"))
+    )
+    result= session.execute(query).all()
+    session.close()
+    return result
+
+def getDocData(fileId):
+    session=createSession()    
+    query = (
+    db.select(
+        Document.RawTxt,
+        File.Size,
+        File.CreatDat,
+        Document.CharCount,
+        Document.WordCount
+    )
+    .where(File.Id==fileId)
+    .where(Document.FileId==File.Id)
     )
     result= session.execute(query).all()
     session.close()
