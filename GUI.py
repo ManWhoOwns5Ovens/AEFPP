@@ -1,4 +1,5 @@
 import PyQt5.QtWidgets as gui
+from PyQt5.QtCore import Qt as qt
 import sys,os
 import DatabaseOps as dbo
 import FileProcessing as fp
@@ -39,14 +40,17 @@ def main():
         table.setRowCount(0)
         table.setRowCount(len(data))
         for row,(name,path,frequency,id) in enumerate(data):
-            table.setItem(row,0,gui.QTableWidgetItem(name))
+            temp=gui.QTableWidgetItem(name)
+            temp.setData(qt.UserRole, id)
+            table.setItem(row,0,temp)
+            # hide id data for searches
+
             table.setItem(row,1,gui.QTableWidgetItem(str(frequency)))
 
             button=gui.QPushButton('Open File')
             button.clicked.connect(lambda _, p=path: openFile(p))
             table.setCellWidget(row,2,button)
 
-            table.item(row,0).setData(0,id)
         table.resizeColumnsToContents()
         table.resizeRowsToContents()
 
@@ -73,8 +77,8 @@ def main():
         return str(size)+' '+units[count]
 
     def rowSelected(row,col):
-        item=table.item(row,0)
-        data=dbo.getDocData(item.data(0))
+        item=table.item(row,0).data(qt.UserRole)
+        data=dbo.getDocData(item)
         data=data[0]   
 
         contentLabel.setText(formatTextToDisplay(data[0],data[3]))
@@ -82,7 +86,6 @@ def main():
         dateLabel.setText('Creation Date: '+data[2].strftime('%d/%m/%Y'))
         charCountLabel.setText('Character Count: '+str(data[3]))
         wordCountLabel.setText('Word Count: '+str(data[4]))
-
 
     def setupResultsPanel():
         contentLabel=gui.QLabel()
@@ -111,6 +114,23 @@ def main():
         errorLabel.hide()
 
         return (searchBar,errorLabel)
+
+    def showContextMenu(pos):
+        index=table.indexAt(pos)
+        row=index.row()
+        print('Row: '+ str(row))
+        menu=gui.QMenu()
+        deleteAction=gui.QAction('Delete Entry', table)
+        deleteAction.triggered.connect(lambda: deleteFile(row))
+
+        menu.addAction(deleteAction)
+        menu.exec_(table.viewport().mapToGlobal(pos))
+
+    def deleteFile(row):
+        item=table.item(row,0).data(qt.UserRole)
+        dbo.dropEntry(item)
+        loadFullDatabase()
+
     app=gui.QApplication(sys.argv)
     window=gui.QWidget()
     window.setWindowTitle('Agile e-Discovery File Processing Pipeline')
@@ -130,7 +150,12 @@ def main():
     table.setColumnCount(3)
     table.setHorizontalHeaderLabels(["Name", "Frequency", ""])
     table.cellClicked.connect(rowSelected)
+
+    table.setContextMenuPolicy(qt.CustomContextMenu)
+    table.customContextMenuRequested.connect(lambda pos: showContextMenu(pos))
+
     loadFullDatabase()
+
 
     contentLabel,sizeLabel,dateLabel,charCountLabel,wordCountLabel=setupResultsPanel()
 

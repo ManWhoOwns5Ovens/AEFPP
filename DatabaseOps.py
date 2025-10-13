@@ -152,5 +152,30 @@ def getDocData(fileId):
     result= session.execute(query).all()
     session.close()
     return result
+
+def dropEntry(id):
+    session=createSession()
+    query= (
+        db.delete(Word)
+        .where (Word.DocumentId == id)
+    )
+    session.execute(query)
+    session.flush()
+
+    query= (
+        db.delete(Document)
+        .where (Document.Id == id)
+    )
+    session.execute(query)
+    session.flush()
+
+    query= (
+        db.delete(File)
+        .where (File.Id == id)
+    )
+    session.execute(query)
+
+    session.commit()
+    session.close()
     
 
