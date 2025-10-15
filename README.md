@@ -1,4 +1,6 @@
 # Automated e-Discovery File Processing Pipeline (A-EFPP)
+Lightweight document analysis and discovery system.
+The current system validates and processes text-based files(.txt,.docx,.pdf), extracting searchable text and computing metadata for deduplication and integrity verification, it then stores processed files in an SQLite database.
 
 ## Prerequisites
 Before running the project, ensure you have the following installed:
