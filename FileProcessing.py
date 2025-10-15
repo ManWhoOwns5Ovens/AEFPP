@@ -1,5 +1,4 @@
-import os, re, magic, collections
-import hashlib
+import os, re, magic, collections,hashlib
 
 import ExtractText
 from Data import FileData, DocumentData
